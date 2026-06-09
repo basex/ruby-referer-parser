@@ -121,18 +121,25 @@ module RefererParser
 
     protected
 
-    # Parse an x-www-form-urlencoded query string into a Hash of arrays, e.g.
-    # "q=a&q=b&hl=en" => {"q" => ["a", "b"], "hl" => ["en"]}. Missing keys return
-    # an empty array. This replaces CGI.parse, which was removed from Ruby's cgi
-    # stdlib in Ruby 4.0; CGI.unescape (used below) is still available.
+    # Parse an x-www-form-urlencoded query string into a Hash of arrays, mirroring
+    # CGI.parse (removed from Ruby's cgi stdlib in Ruby 4.0; CGI.unescape, used
+    # below, is still available). Matching CGI.parse exactly:
+    #   "q=a&q=b&hl=en" => {"q" => ["a", "b"], "hl" => ["en"]}
+    #   "a&b=1"         => {"a" => [], "b" => ["1"]}  # bare key => empty array
+    #   "a="            => {"a" => [""]}              # key with empty value
+    # and missing keys return an empty array.
     def parse_query(query)
-      params = Hash.new { |hash, key| hash[key] = [] }
+      params = {}
 
       query.to_s.split('&').each do |pair|
         key, value = pair.split('=', 2).map { |component| CGI.unescape(component) }
+        next if key.nil?
+
+        params[key] ||= []
         params[key] << value if value
       end
 
+      params.default = [].freeze
       params
     end
 
