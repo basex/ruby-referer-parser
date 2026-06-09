@@ -103,7 +103,7 @@ module RefererParser
 
         # Parse parameters if the referer uses them
         if url.query && referer_data[:parameters]
-          query_params = CGI.parse(url.query)
+          query_params = parse_query(url.query)
           referer_data[:parameters].each do |param|
             # If there is a matching parameter, get the first non-blank value
             unless (values = query_params[param]).empty?
@@ -120,6 +120,21 @@ module RefererParser
     end
 
     protected
+
+    # Parse an x-www-form-urlencoded query string into a Hash of arrays, e.g.
+    # "q=a&q=b&hl=en" => {"q" => ["a", "b"], "hl" => ["en"]}. Missing keys return
+    # an empty array. This replaces CGI.parse, which was removed from Ruby's cgi
+    # stdlib in Ruby 4.0; CGI.unescape (used below) is still available.
+    def parse_query(query)
+      params = Hash.new { |hash, key| hash[key] = [] }
+
+      query.to_s.split('&').each do |pair|
+        key, value = pair.split('=', 2).map { |component| CGI.unescape(component) }
+        params[key] << value if value
+      end
+
+      params
+    end
 
     # Determine the correct name_key for this host and path
     def domain_and_name_key_for(uri)
